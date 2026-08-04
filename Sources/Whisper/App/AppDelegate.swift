@@ -13,6 +13,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let clipboardPaster = ClipboardPaster()
     private let preferencesWindowController = PreferencesWindowController()
     private let hud = HUDWindowController()
+    private let historyStore = TranscriptHistoryStore()
+    private lazy var historyWindowController = HistoryWindowController(store: historyStore)
 
     private func setState(_ state: AppState) {
         statusMenu?.setState(state)
@@ -33,6 +35,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         menu.onOpenPreferences = { [weak self] in
             self?.preferencesWindowController.show()
+        }
+        menu.onOpenHistory = { [weak self] in
+            self?.historyWindowController.show()
         }
 
         Task {
@@ -56,6 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             if session.start() {
                 self.setState(.recording)
+                SoundCue.playRecordingStart()
             } else {
                 self.setState(.error)
                 self.dictationSession = nil
@@ -64,6 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         chordMonitor.onChordUp = { [weak self] in
             guard let self, let session = self.dictationSession else { return }
             self.setState(.transcribing)
+            SoundCue.playRecordingEnd()
             Task {
                 let transcript = await session.stop()
                 self.dictationSession = nil
@@ -80,7 +87,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     let polished = try await self.polisher.polish(transcript)
                     let elapsed = Date().timeIntervalSince(start)
                     print("POLISHED (\(String(format: "%.2f", elapsed))s): \(polished)")
-                    self.clipboardPaster.pasteAndRestore(polished)
+                    self.clipboardPaster.copyAndPaste(polished)
+                    self.historyStore.add(rawText: transcript, polishedText: polished)
                 } catch {
                     print("Polish error: \(error.localizedDescription)")
                 }

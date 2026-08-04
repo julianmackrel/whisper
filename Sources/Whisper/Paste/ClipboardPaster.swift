@@ -1,32 +1,18 @@
 import AppKit
 
-/// Puts text on the clipboard, simulates Cmd+V into whatever app is
-/// frontmost, then restores the clipboard's previous contents.
+/// Puts text on the clipboard and simulates Cmd+V into whatever app is
+/// frontmost. The text is deliberately left on the clipboard afterward
+/// (not restored) — if nothing was focused to receive the paste, the user
+/// can still Cmd+V it manually at any point.
 @MainActor
 final class ClipboardPaster {
     private static let kVK_ANSI_V: CGKeyCode = 0x09
-    private static let restoreDelay: TimeInterval = 0.35
 
-    func pasteAndRestore(_ text: String) {
+    func copyAndPaste(_ text: String) {
         let pasteboard = NSPasteboard.general
-        let savedString = pasteboard.string(forType: .string)
-
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
-        let ourChangeCount = pasteboard.changeCount
-
         postCmdV()
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.restoreDelay) {
-            // Only restore if nothing else has touched the pasteboard since our write
-            // (e.g. the target app read it as part of paste) — avoids clobbering a
-            // clipboard change the user or another app made in the meantime.
-            guard pasteboard.changeCount == ourChangeCount else { return }
-            pasteboard.clearContents()
-            if let savedString {
-                pasteboard.setString(savedString, forType: .string)
-            }
-        }
     }
 
     private func postCmdV() {
