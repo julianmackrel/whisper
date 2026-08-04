@@ -73,7 +73,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             SoundCue.playRecordingEnd()
             Task {
                 let transcript = await session.stop()
-                self.dictationSession = nil
+                // Only clear the reference if it's still *this* session. A new
+                // dictation started while this one was finishing (rapid
+                // release-then-press) will have replaced `dictationSession`;
+                // nil-ing unconditionally here would orphan that live session.
+                if self.dictationSession === session { self.dictationSession = nil }
                 print("RAW: \(transcript)")
 
                 guard !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
