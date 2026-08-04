@@ -31,21 +31,21 @@ built from scratch to run entirely locally with no cloud calls.
 
 ### Option A: Download a prebuilt build
 
-Grab the latest `Whisper.app.zip` from the [Releases](../../releases) page, unzip it, and move
-`Whisper.app` wherever you like (e.g. `/Applications`).
+Grab the latest `Whisper-release.zip` from the [Releases](../../releases) page and unzip it —
+you'll get a `Whisper` folder containing `Whisper.app` and `Install.command`.
 
-Since this isn't signed with a paid Apple Developer ID, macOS Gatekeeper will flag it as being
-from an "unidentified developer" the first time you open it. To run it anyway:
+**Double-click `Install.command`.** It clears the download's quarantine flag and launches
+Whisper for you — no Terminal typing required. (Since the app isn't signed with a paid Apple
+Developer ID, macOS would otherwise show a scary "could not verify... not from an identified
+developer" warning with no way to proceed on a plain double-click of `Whisper.app` itself;
+`Install.command` sidesteps that entirely.)
 
-1. Right-click (or Control-click) `Whisper.app` → **Open** → **Open** again in the dialog that
-   appears. (A plain double-click will just show a warning with no option to proceed.)
+If macOS still shows a warning about `Install.command` itself the first time (a much milder
+"are you sure you want to open this?" prompt, not the scary one above), that's normal for any
+downloaded script — click **Open**.
 
-   If you don't see an "Open" option, remove the quarantine flag from Terminal instead:
-   ```bash
-   xattr -dr com.apple.quarantine /path/to/Whisper.app
-   ```
-2. Launch it. You'll be prompted for Microphone, Speech Recognition, and Accessibility
-   permissions — grant all three (see [Permissions](#permissions) below for why).
+Once it launches, you'll be prompted for Microphone, Speech Recognition, and Accessibility
+permissions — grant all three (see [Permissions](#permissions) below for why).
 
 ### Option B: Build from source
 
@@ -97,6 +97,7 @@ Sources/Whisper/
 Scripts/
   make-dev-cert.sh                # One-time local codesigning identity
   bundle-app.sh                   # swift build -c release -> Whisper.app
+  package-release.sh              # bundle-app.sh + Install.command -> Whisper-release.zip
 ```
 
 ## Known limitations
@@ -105,8 +106,9 @@ Scripts/
   the custom vocabulary list to help, but it won't be perfect.
 - Requires Apple Intelligence to be available and enabled on the machine; there's no cloud
   fallback by design.
-- Unsigned-by-Apple builds will always show a Gatekeeper warning on first launch on a machine that
-  didn't build it locally (see [Option A](#option-a-download-a-prebuilt-build) above).
+- Unsigned-by-Apple builds aren't notarized, so without `Install.command` (or a manual
+  `xattr -dr com.apple.quarantine`), macOS Gatekeeper blocks a plain double-click with no way to
+  proceed. See [Option A](#option-a-download-a-prebuilt-build) above.
 
 ## License
 
