@@ -35,6 +35,7 @@ final class StatusMenuController {
 
     var onToggleEnabled: ((Bool) -> Void)?
     var onEditVocabulary: (() -> Void)?
+    var onOpenPreferences: (() -> Void)?
 
     init() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
@@ -42,6 +43,7 @@ final class StatusMenuController {
         enabledMenuItem = NSMenuItem(title: "Enabled", action: #selector(toggleEnabled), keyEquivalent: "")
         launchAtLoginMenuItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
         let editVocabularyItem = NSMenuItem(title: "Edit Custom Words…", action: #selector(editVocabulary), keyEquivalent: "")
+        let preferencesItem = NSMenuItem(title: "Preferences…", action: #selector(openPreferences), keyEquivalent: ",")
         let quitItem = NSMenuItem(title: "Quit Whisper", action: #selector(quit), keyEquivalent: "q")
 
         let menu = NSMenu()
@@ -50,6 +52,7 @@ final class StatusMenuController {
         menu.addItem(enabledMenuItem)
         menu.addItem(launchAtLoginMenuItem)
         menu.addItem(editVocabularyItem)
+        menu.addItem(preferencesItem)
         menu.addItem(.separator())
         menu.addItem(quitItem)
         statusItem.menu = menu
@@ -91,6 +94,10 @@ final class StatusMenuController {
 
     @objc private func editVocabulary() {
         onEditVocabulary?()
+    }
+
+    @objc private func openPreferences() {
+        onOpenPreferences?()
     }
 
     @objc private func quit() {

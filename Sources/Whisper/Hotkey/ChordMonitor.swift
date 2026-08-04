@@ -5,10 +5,15 @@ import AppKit
 @MainActor
 final class ChordMonitor {
     private static let chordFlags: NSEvent.ModifierFlags = [.command, .control]
+    /// Grace period before treating a release as real, so a momentary key
+    /// blip (e.g. Control lifting for an instant as your hand shifts) doesn't
+    /// split one held dictation into several separate presses.
+    private static let releaseDebounce: TimeInterval = 0.2
 
     private var globalMonitor: Any?
     private var localMonitor: Any?
     private var isChordActive = false
+    private var pendingRelease: DispatchWorkItem?
 
     var onChordDown: (() -> Void)?
     var onChordUp: (() -> Void)?
@@ -29,6 +34,8 @@ final class ChordMonitor {
         if let localMonitor { NSEvent.removeMonitor(localMonitor) }
         globalMonitor = nil
         localMonitor = nil
+        pendingRelease?.cancel()
+        pendingRelease = nil
         isChordActive = false
     }
 
@@ -36,12 +43,23 @@ final class ChordMonitor {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let chordHeld = flags == Self.chordFlags
 
-        if chordHeld && !isChordActive {
-            isChordActive = true
-            onChordDown?()
-        } else if !chordHeld && isChordActive {
-            isChordActive = false
-            onChordUp?()
+        if chordHeld {
+            pendingRelease?.cancel()
+            pendingRelease = nil
+            if !isChordActive {
+                isChordActive = true
+                onChordDown?()
+            }
+        } else if isChordActive {
+            pendingRelease?.cancel()
+            let workItem = DispatchWorkItem { [weak self] in
+                guard let self, self.isChordActive else { return }
+                self.isChordActive = false
+                self.pendingRelease = nil
+                self.onChordUp?()
+            }
+            pendingRelease = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.releaseDebounce, execute: workItem)
         }
     }
 }

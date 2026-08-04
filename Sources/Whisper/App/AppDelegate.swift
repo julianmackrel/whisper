@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import Speech
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -10,6 +11,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var dictationSession: DictationSession?
     private let polisher: PolishEngine = FoundationModelsPolisher()
     private let clipboardPaster = ClipboardPaster()
+    private let preferencesWindowController = PreferencesWindowController()
+    private let hud = HUDWindowController()
+
+    private func setState(_ state: AppState) {
+        statusMenu?.setState(state)
+        hud.update(state: state)
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         VocabularyStore.ensureFileExists()
@@ -23,6 +31,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.onEditVocabulary = {
             NSWorkspace.shared.open(VocabularyStore.fileURL)
         }
+        menu.onOpenPreferences = { [weak self] in
+            self?.preferencesWindowController.show()
+        }
 
         Task {
             await permissions.bootstrapAll()
@@ -30,33 +41,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if !permissions.allGranted {
                 startRecheckingUntilGranted()
             }
+            warmUp()
         }
 
         chordMonitor.onChordDown = { [weak self] in
             guard let self, self.statusMenu?.isDictationEnabled == true else { return }
             let session = DictationSession()
             self.dictationSession = session
+            session.onAudioLevel = { [weak self] level in
+                self?.hud.update(level: level)
+            }
+            session.onPartialTranscript = { [weak self] text in
+                self?.hud.update(partialText: text)
+            }
             if session.start() {
-                self.statusMenu?.setState(.recording)
+                self.setState(.recording)
             } else {
-                self.statusMenu?.setState(.error)
+                self.setState(.error)
                 self.dictationSession = nil
             }
         }
         chordMonitor.onChordUp = { [weak self] in
             guard let self, let session = self.dictationSession else { return }
-            self.statusMenu?.setState(.transcribing)
+            self.setState(.transcribing)
             Task {
                 let transcript = await session.stop()
                 self.dictationSession = nil
                 print("RAW: \(transcript)")
 
                 guard !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                    self.statusMenu?.setState(.idle)
+                    self.setState(.idle)
                     return
                 }
 
-                self.statusMenu?.setState(.polishing)
+                self.setState(.polishing)
                 let start = Date()
                 do {
                     let polished = try await self.polisher.polish(transcript)
@@ -66,18 +84,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 } catch {
                     print("Polish error: \(error.localizedDescription)")
                 }
-                self.statusMenu?.setState(.idle)
+                self.setState(.idle)
             }
         }
         chordMonitor.start()
     }
 
+    /// Both SFSpeechRecognizer and FoundationModels have a noticeable one-time
+    /// model-load cost on first use. Firing a throwaway pass through each
+    /// right after launch keeps that latency off the user's first real
+    /// dictation instead of making it feel like the app is slow to start.
+    private func warmUp() {
+        Task {
+            if let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US")) {
+                _ = recognizer.isAvailable
+                _ = recognizer.supportsOnDeviceRecognition
+            }
+            _ = try? await polisher.polish("warm up")
+        }
+    }
+
     private func refreshState() {
         guard statusMenu?.isDictationEnabled == true else {
-            statusMenu?.setState(.disabled)
+            setState(.disabled)
             return
         }
-        statusMenu?.setState(permissions.allGranted ? .idle : .error)
+        setState(permissions.allGranted ? .idle : .error)
     }
 
     /// Permission grants made in System Settings (Accessibility in particular)
