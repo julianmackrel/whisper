@@ -89,7 +89,9 @@ final class DictationSession {
     /// Starts capturing mic audio and streaming it to on-device recognition.
     /// Returns false if the recognizer/engine couldn't start.
     func start() -> Bool {
-        guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US")),
+        let localeID = UserDefaults.standard.string(forKey: SpeechSettingsKeys.recognitionLocale)
+            ?? SpeechSettingsDefaults.recognitionLocale
+        guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: localeID)),
               recognizer.isAvailable else {
             print("Speech recognizer unavailable")
             return false

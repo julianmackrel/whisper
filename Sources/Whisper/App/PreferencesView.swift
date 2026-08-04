@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct PreferencesView: View {
@@ -7,9 +8,29 @@ struct PreferencesView: View {
     @AppStorage(PolishSettingsKeys.conciseness) private var conciseness = PolishSettingsDefaults.conciseness
     @AppStorage(SoundSettingsKeys.recordingStartSound) private var recordingStartSound = SoundOption.defaultStart.rawValue
     @AppStorage(SoundSettingsKeys.recordingEndSound) private var recordingEndSound = SoundOption.defaultEnd.rawValue
+    @AppStorage(SpeechSettingsKeys.recognitionLocale) private var recognitionLocale = SpeechSettingsDefaults.recognitionLocale
+
+    private let availableLocales = RecognitionLocaleCatalog.availableOnDeviceLocales()
 
     var body: some View {
         Form {
+            Section("Language") {
+                Picker("Recognition language", selection: $recognitionLocale) {
+                    ForEach(availableLocales) { locale in
+                        Text(locale.displayName).tag(locale.identifier)
+                    }
+                }
+                .pickerStyle(.menu)
+                Text("Only languages installed for on-device Dictation appear here.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Button("Open Dictation Settings…") {
+                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.keyboard?Dictation") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+            }
+
             Section("Content") {
                 Toggle("Remove filler words & false starts", isOn: $removeFillerWords)
                 Toggle("Format as bullet points", isOn: $useBulletPoints)
@@ -40,7 +61,7 @@ struct PreferencesView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 380, height: 420)
+        .frame(width: 380, height: 480)
     }
 
     private var formalityLabel: String {

@@ -104,7 +104,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// dictation instead of making it feel like the app is slow to start.
     private func warmUp() {
         Task {
-            if let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US")) {
+            let localeID = UserDefaults.standard.string(forKey: SpeechSettingsKeys.recognitionLocale)
+                ?? SpeechSettingsDefaults.recognitionLocale
+            if let recognizer = SFSpeechRecognizer(locale: Locale(identifier: localeID)) {
                 _ = recognizer.isAvailable
                 _ = recognizer.supportsOnDeviceRecognition
             }
