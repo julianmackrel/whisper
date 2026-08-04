@@ -4,6 +4,4 @@ Resources/AppIcon.iconset/
 .DS_Store
 .swiftpm/
 .claude/
-.release-staging/
-Whisper-release.zip
 Whisper.app.zip
